@@ -1,54 +1,28 @@
-using System.Collections;
-using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 
-public class FatigueDisplay : MonoBehaviour
+public class FatigueDisplay : DisplayBase
 {
     [Header("Display Settings")]
-    [SerializeField] private Entity entity;
-    [SerializeField] private bool faceCamera = true; // New option for world space displays
-
-    private TextMeshProUGUI fatigueDisplay;
-    private Camera mainCamera;
-
-    void Start()
+    [SerializeField] protected Entity entity;
+    
+    protected override void BaseResponsability()
     {
-        fatigueDisplay = GetComponent<TextMeshProUGUI>();
-
-        // Get camera reference for world space displays
-        if (faceCamera)
-        {
-            mainCamera = Camera.main;
-            if (mainCamera == null)
-                mainCamera = FindObjectOfType<Camera>();
-        }
-    }
-
-    void Update()
-    {
+        base.BaseResponsability();
         UpdateFatigueDisplay();
-
-        // Make text face camera if it's a world space canvas
-        if (faceCamera && mainCamera != null && GetComponentInParent<Canvas>()?.renderMode == RenderMode.WorldSpace)
-        {
-            transform.LookAt(transform.position + mainCamera.transform.rotation * Vector3.forward,
-                           mainCamera.transform.rotation * Vector3.up);
-        }
     }
-
+    
     void UpdateFatigueDisplay()
     {
-        if (entity == null || fatigueDisplay == null) return;
+        if (entity == null || displayText == null) return;
 
-        fatigueDisplay.text = $"{entity.entityFatigue.fatigue.ToString()} / {entity.entityFatigue.maxFatigue.ToString()}";
+        displayText.text = $"{entity.entityFatigue.fatigue.ToString()} / {entity.entityFatigue.maxFatigue.ToString()}";
     }
-
+    
     /// <summary>
     /// Set the entity reference at runtime (useful for spawned enemies)
     /// </summary>
-    public void SetEntity(Entity newEntity)
+    public virtual void SetEntity(Entity newEntity)
     {
         entity = newEntity;
     }

@@ -161,7 +161,7 @@ public class HookSpawner : MonoBehaviour
 
                 if (currentHook.IsAboveWater) currentHook.GetComponentInChildren<CircleCollider2D>().enabled = false;
 
-                Debug.Log($"Hook being retracted gradually - remaining length: {newLength:F1}");
+                //Debug.Log($"Hook being retracted gradually - remaining length: {newLength:F1}");
             }
             else
             {

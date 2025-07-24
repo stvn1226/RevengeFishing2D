@@ -7,15 +7,15 @@ public class BoatController : MonoBehaviour
     [Header("Boat Configuration")]
     [SerializeField] private GameObject boatFishermanPrefab;
     [SerializeField] private Transform[] crewSpawnPoints;
-    [SerializeField] private int minCrewMembers = 1;
     [SerializeField] private int maxCrewMembers = 2;
+    [SerializeField] private int maxInactiveCrewMembers = 1;
     
     [Header("Integrity System")]
     [SerializeField] private float baseBoatIntegrity = 0f;
     [SerializeField] private bool debugIntegrity = true;
     
     [Header("Runtime Info (Read Only)")]
-    [SerializeField] private List<BoatFisherman> activeCrewMembers = new List<BoatFisherman>();
+    [SerializeField] private List<Fisherman> allCrewMembers = new List<Fisherman>();
     [SerializeField] private float currentIntegrity;
     [SerializeField] private float maxIntegrity;
     [SerializeField] private bool isBoatDestroyed = false;
@@ -36,29 +36,63 @@ public class BoatController : MonoBehaviour
 
     void Start()
     {
-        StartCoroutine(InitializeBoatWithCrew());
+        if (allCrewMembers.Count == 0)
+        {
+            StartCoroutine(InitializeBoatWithCrew());
+        }
+        else
+        {
+            StartCoroutine(ResetExistingCrew());
+        }
     }
 
     IEnumerator InitializeBoatWithCrew()
     {
         yield return null;
         
-        int crewCount = Mathf.Min(Random.Range(minCrewMembers, maxCrewMembers + 1), crewSpawnPoints.Length);
-        
         if (debugIntegrity)
-            Debug.Log($"Spawning {crewCount} BoatFishermanHandler prefabs for boat {gameObject.name}");
+            Debug.Log($"Creating {maxCrewMembers} BoatFishermanHandler prefabs for boat {gameObject.name}");
         
-        for (int i = 0; i < crewCount; i++)
+        for (int i = 0; i < maxCrewMembers && i < crewSpawnPoints.Length; i++)
         {
             StartCoroutine(InstantiateAndAssignCrewMember(crewSpawnPoints[i]));
         }
         
         yield return null;
         
+        RandomlyDeactivateCrewMembers();
         CalculateBoatIntegrity();
         
         if (debugIntegrity)
-            Debug.Log($"Boat {gameObject.name} initialized with {activeCrewMembers.Count} crew. Integrity: {currentIntegrity}/{maxIntegrity}");
+            Debug.Log($"Boat {gameObject.name} initialized with {GetActiveCrewCount()} active crew. Integrity: {currentIntegrity}/{maxIntegrity}");
+    }
+
+    IEnumerator ResetExistingCrew()
+    {
+        yield return null;
+        
+        if (debugIntegrity)
+            Debug.Log($"Resetting existing crew for boat {gameObject.name}");
+        
+        foreach (Fisherman fisherman in allCrewMembers)
+        {
+            if (fisherman != null)
+            {
+                fisherman.gameObject.SetActive(true);
+                fisherman.TriggerAlive();
+                fisherman.ScheduleNextAction();
+                
+                yield return StartCoroutine(AssignToBoatPlatform(fisherman.transform.parent.gameObject));
+            }
+        }
+        
+        yield return null;
+        
+        RandomlyDeactivateCrewMembers();
+        CalculateBoatIntegrity();
+        
+        if (debugIntegrity)
+            Debug.Log($"Boat {gameObject.name} reset with {GetActiveCrewCount()} active crew. Integrity: {currentIntegrity}/{maxIntegrity}");
     }
 
     IEnumerator InstantiateAndAssignCrewMember(Transform spawnPoint)
@@ -72,70 +106,86 @@ public class BoatController : MonoBehaviour
         GameObject crewHandlerObj = Instantiate(boatFishermanPrefab, spawnPoint.position, spawnPoint.rotation);
         crewHandlerObj.transform.SetParent(transform);
         
-        yield return StartCoroutine(AssignToBoatPlatform(crewHandlerObj, spawnPoint.position));
+        yield return StartCoroutine(AssignToBoatPlatform(crewHandlerObj));
         
-        BoatFisherman boatFisherman = crewHandlerObj.GetComponentInChildren<BoatFisherman>();
-        if (boatFisherman != null)
+        Fisherman fisherman = crewHandlerObj.GetComponentInChildren<Fisherman>();
+        if (fisherman != null)
         {
-            boatFisherman.SetBoatController(this);
-            
-            activeCrewMembers.Add(boatFisherman);
-            
-            boatFisherman.OnCrewMemberDefeated += OnCrewMemberDefeated;
-            boatFisherman.OnCrewMemberEaten += OnCrewMemberEaten;
+            allCrewMembers.Add(fisherman);
             
             if (debugIntegrity)
-                Debug.Log($"Instantiated and configured BoatFisherman {boatFisherman.name} on boat {gameObject.name}");
+                Debug.Log($"Instantiated and configured Fisherman {fisherman.name} on boat {gameObject.name}");
         }
         else
         {
-            Debug.LogError($"Instantiated BoatFishermanHandler doesn't contain BoatFisherman component!");
+            Debug.LogError($"Instantiated BoatFishermanHandler doesn't contain Fisherman component!");
             Destroy(crewHandlerObj);
         }
     }
 
-    IEnumerator AssignToBoatPlatform(GameObject enemy, Vector3 spawnPos)
+    IEnumerator AssignToBoatPlatform(GameObject enemy)
     {
         yield return null;
+        
+        if (boatPlatform == null)
+        {
+            Debug.LogError($"No BoatPlatform found for {gameObject.name}!");
+            yield break;
+        }
         
         LandEnemy landEnemy = enemy.GetComponentInChildren<LandEnemy>();
         if (landEnemy != null)
         {
-            BoatPlatform platform = FindNearestBoatPlatform(spawnPos);
-            if (platform != null)
-            {
-                platform.RegisterEnemyAtRuntime(landEnemy);
-                
-                if (debugIntegrity)
-                    Debug.Log($"Assigned {landEnemy.name} to BoatPlatform {platform.name}");
-            }
+            boatPlatform.RegisterEnemyAtRuntime(landEnemy);
+            landEnemy.OnPlatformAssigned(boatPlatform);
+            
+            if (debugIntegrity)
+                Debug.Log($"Assigned {landEnemy.name} to BoatPlatform {boatPlatform.name} and triggered OnPlatformAssigned");
         }
     }
 
-    BoatPlatform FindNearestBoatPlatform(Vector3 spawnPos)
+    void RandomlyDeactivateCrewMembers()
     {
-        if (boatPlatform != null)
+        if (allCrewMembers.Count == 0) return;
+        
+        foreach (Fisherman crew in allCrewMembers)
         {
-            return boatPlatform;
+            if (crew != null)
+                crew.gameObject.SetActive(true);
         }
         
-        BoatPlatform[] platforms = GetComponentsInChildren<BoatPlatform>();
-        if (platforms.Length > 0)
+        int inactiveCount = Random.Range(0, Mathf.Min(maxInactiveCrewMembers + 1, allCrewMembers.Count));
+        
+        if (inactiveCount > 0)
         {
-            return platforms[0];
+            List<Fisherman> availableToDeactivate = new List<Fisherman>(allCrewMembers);
+            
+            for (int i = 0; i < inactiveCount; i++)
+            {
+                if (availableToDeactivate.Count > 0)
+                {
+                    int randomIndex = Random.Range(0, availableToDeactivate.Count);
+                    Fisherman toDeactivate = availableToDeactivate[randomIndex];
+                    toDeactivate.gameObject.SetActive(false);
+                    availableToDeactivate.RemoveAt(randomIndex);
+                    
+                    if (debugIntegrity)
+                        Debug.Log($"Deactivated crew member {toDeactivate.name}");
+                }
+            }
         }
         
-        Debug.LogError($"No BoatPlatform found for {gameObject.name}!");
-        return null;
+        if (debugIntegrity)
+            Debug.Log($"Boat has {GetActiveCrewCount()}/{allCrewMembers.Count} active crew members");
     }
 
     void CalculateBoatIntegrity()
     {
         float totalCrewPower = 0f;
         
-        foreach (BoatFisherman crew in activeCrewMembers)
+        foreach (Fisherman crew in allCrewMembers)
         {
-            if (crew != null && crew.State == Enemy.EnemyState.Alive)
+            if (crew != null && crew.gameObject.activeInHierarchy && crew.State == Enemy.EnemyState.Alive)
             {
                 totalCrewPower += crew.PowerLevel;
             }
@@ -147,52 +197,27 @@ public class BoatController : MonoBehaviour
         OnIntegrityChanged?.Invoke(currentIntegrity, maxIntegrity);
     }
 
-    void OnCrewMemberDefeated(BoatFisherman defeatedCrew)
+    int GetActiveCrewCount()
     {
-        if (debugIntegrity)
-            Debug.Log($"Crew member {defeatedCrew.name} defeated. Recalculating boat integrity...");
-        
-        float powerLost = defeatedCrew.PowerLevel;
-        currentIntegrity = Mathf.Max(0f, currentIntegrity - powerLost);
-        
-        OnIntegrityChanged?.Invoke(currentIntegrity, maxIntegrity);
-        
-        CheckBoatDestruction();
-    }
-
-    void OnCrewMemberEaten(BoatFisherman eatenCrew)
-    {
-        if (debugIntegrity)
-            Debug.Log($"Crew member {eatenCrew.name} eaten. Removing from active crew...");
-        
-        if (boatPlatform != null)
+        int count = 0;
+        foreach (Fisherman crew in allCrewMembers)
         {
-            boatPlatform.UnregisterEnemy(eatenCrew);
+            if (crew != null && crew.gameObject.activeInHierarchy && crew.State == Enemy.EnemyState.Alive)
+            {
+                count++;
+            }
         }
-        
-        activeCrewMembers.Remove(eatenCrew);
-        
-        eatenCrew.OnCrewMemberDefeated -= OnCrewMemberDefeated;
-        eatenCrew.OnCrewMemberEaten -= OnCrewMemberEaten;
-        
-        CheckBoatDestruction();
+        return count;
     }
 
     void CheckBoatDestruction()
     {
-        int aliveCrewCount = 0;
-        foreach (BoatFisherman crew in activeCrewMembers)
-        {
-            if (crew != null && crew.State == Enemy.EnemyState.Alive)
-            {
-                aliveCrewCount++;
-            }
-        }
+        int aliveCrewCount = GetActiveCrewCount();
         
-        // if (aliveCrewCount == 0 || currentIntegrity <= 0f)
-        // {
-        //     DestroyBoat();
-        // }
+        if (aliveCrewCount == 0 || currentIntegrity <= 0f)
+        {
+            DestroyBoat();
+        }
     }
 
     void DestroyBoat()
@@ -205,19 +230,6 @@ public class BoatController : MonoBehaviour
             Debug.Log($"Boat {gameObject.name} destroyed!");
         
         OnBoatDestroyed?.Invoke();
-        
-        foreach (BoatFisherman crew in activeCrewMembers)
-        {
-            if (crew != null && crew.gameObject != null)
-            {
-                if (boatPlatform != null)
-                {
-                    boatPlatform.UnregisterEnemy(crew);
-                }
-                Destroy(crew.transform.parent.gameObject);
-            }
-        }
-        activeCrewMembers.Clear();
         
         StartCoroutine(DestroyBoatDelayed());
     }
@@ -238,43 +250,33 @@ public class BoatController : MonoBehaviour
 
     public void ResetForPooling()
     {
-        if (boatPlatform != null)
-        {
-            foreach (BoatFisherman crew in activeCrewMembers)
-            {
-                if (crew != null)
-                {
-                    boatPlatform.UnregisterEnemy(crew);
-                }
-            }
-        }
-        
-        foreach (BoatFisherman crew in activeCrewMembers)
-        {
-            if (crew != null && crew.gameObject != null)
-            {
-                Destroy(crew.transform.parent.gameObject);
-            }
-        }
-        
-        activeCrewMembers.Clear();
         currentIntegrity = 0f;
         maxIntegrity = 0f;
         isBoatDestroyed = false;
         
-        StartCoroutine(InitializeBoatWithCrew());
+        if (allCrewMembers.Count == 0)
+        {
+            StartCoroutine(InitializeBoatWithCrew());
+        }
+        else
+        {
+            StartCoroutine(ResetExistingCrew());
+        }
     }
 
     public float GetCurrentIntegrity() => currentIntegrity;
     public float GetMaxIntegrity() => maxIntegrity;
-    public int GetAliveCrewCount() 
+    public List<Fisherman> GetAllCrewMembers() => new List<Fisherman>(allCrewMembers);
+    public List<Fisherman> GetActiveCrewMembers()
     {
-        int count = 0;
-        foreach (BoatFisherman crew in activeCrewMembers)
+        List<Fisherman> activeCrew = new List<Fisherman>();
+        foreach (Fisherman crew in allCrewMembers)
         {
-            if (crew != null && crew.State == Enemy.EnemyState.Alive) count++;
+            if (crew != null && crew.gameObject.activeInHierarchy)
+            {
+                activeCrew.Add(crew);
+            }
         }
-        return count;
+        return activeCrew;
     }
-    public List<BoatFisherman> GetActiveCrewMembers() => new List<BoatFisherman>(activeCrewMembers);
 }
