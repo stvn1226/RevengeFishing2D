@@ -5,10 +5,23 @@ public class BoatFloater : MonoBehaviour
     [Header("Float Points")]
     public Transform[] floatPoints = new Transform[3];
 
+    [Header("Components to move the boat")]
+
+    [Tooltip("Testing only - Set to \" 0 \" HorizontalForce & MaxHorizontalForce for normal gameplay")]
+    [SerializeField] private float horizontalForce = 0f;
+
+    [Tooltip("Testing only - Set to \" 0 \" HorizontalForce & MaxHorizontalForce for normal gameplay")]
+    [SerializeField] private float maxHorizontalForce = 5f;
+
+    [Tooltip("Gameplay only - Set to \" 60 \", MovementSpeed & MaxMovementForce for normal speed")]
+
+    [SerializeField] private float movementSpeed = 2f;
+
+    [Tooltip("Gameplay only - Set to \" 60 \", MovementSpeed & MaxMovementForce for normal speed")]
+    [SerializeField] private float maxMovementForce = 6f;
+
     [Header("Movement Control")]
     [SerializeField] private bool enableFloaterMovement = true;
-    [SerializeField] private float horizontalForce = 0f;
-    [SerializeField] private float maxHorizontalForce = 5f;
     [SerializeField] private bool adaptToScaleDirection = true;
 
     [Header("Visual Direction")]
@@ -17,8 +30,8 @@ public class BoatFloater : MonoBehaviour
 
     [Header("BOAT MOVEMENT SYSTEM")]
     [SerializeField] private bool enableAutomaticMovement = true;
-    [SerializeField] private float movementSpeed = 2f;
-    [SerializeField] private float maxMovementForce = 6f;
+
+
     [SerializeField] private float movementChangeInterval = 3f;
     [SerializeField] private float minMovementTime = 2f;
     [SerializeField] private bool debugMovement = false;
@@ -30,7 +43,7 @@ public class BoatFloater : MonoBehaviour
     [SerializeField] private float buoyancyForce = 25f;
     [SerializeField] private float waterDrag = 0.85f;
     [SerializeField] private float angularDrag = 0.7f;
-    
+
     [Header("DYNAMIC MASS COMPENSATION")]
     [SerializeField] private bool enableDynamicBuoyancy = true;
     [SerializeField] private float baseMass = 1f;
@@ -77,7 +90,7 @@ public class BoatFloater : MonoBehaviour
     private float lastMovementChange = 0f;
     private Vector2 currentMovementTarget;
     private Platform assignedPlatform;
-    
+
     // NEW: Dynamic mass tracking
     private float lastKnownMass = 0f;
     private float effectiveBuoyancyForce = 6f;
@@ -96,13 +109,13 @@ public class BoatFloater : MonoBehaviour
         {
             Debug.LogError("BoatFloater: Float Points not assigned in inspector.");
         }
-        
+
         // Initialize mass tracking with initial cache
         baseMass = rb.mass;
         RefreshComponentCache(); // Cache components immediately
         lastKnownMass = CalculateTotalMassOptimized();
         effectiveBuoyancyForce = buoyancyForce;
-        
+
         // CRITICAL: Ensure buoyancy can overcome gravity for this mass
         float requiredBuoyancy = rb.mass * Physics2D.gravity.magnitude * 1.5f; // 1.5x gravity for good floating
         if (effectiveBuoyancyForce < requiredBuoyancy)
@@ -110,7 +123,7 @@ public class BoatFloater : MonoBehaviour
             effectiveBuoyancyForce = requiredBuoyancy;
             Debug.Log($"AUTO-ADJUSTED: Buoyancy increased to {effectiveBuoyancyForce:F1} to support mass {rb.mass}");
         }
-        
+
         if (debugMassChanges)
         {
             Debug.Log($"BoatFloater: Initial mass setup - Base: {baseMass}, Total: {lastKnownMass}, Buoyancy: {effectiveBuoyancyForce}");
@@ -129,7 +142,7 @@ public class BoatFloater : MonoBehaviour
                     break;
                 }
             }
-            
+
             if (boatSpriteRenderer == null && renderers.Length > 0)
             {
                 boatSpriteRenderer = renderers[0];
@@ -138,10 +151,10 @@ public class BoatFloater : MonoBehaviour
         }
 
         UpdateDirectionMultiplier();
-        
+
         // NEW: Check if already registered to platform (for prefabs that start on platforms)
         StartCoroutine(CheckForPlatformRegistration());
-        
+
         if (debugMovement)
         {
             Debug.Log("BoatFloater: Initialized, waiting for platform registration to start movement");
@@ -154,7 +167,7 @@ public class BoatFloater : MonoBehaviour
         float checkTime = 0f;
         int checkCount = 0;
         const int MAX_CHECKS = 6; // Limit to 6 checks instead of continuous for 5 seconds
-        
+
         // Cache platforms at start to avoid repeated FindObjectsOfType calls
         if (cachedPlatforms == null || cachedPlatforms.Length == 0)
         {
@@ -164,7 +177,7 @@ public class BoatFloater : MonoBehaviour
                 Debug.Log($"BoatFloater: Cached {cachedPlatforms.Length} platforms for registration checks");
             }
         }
-        
+
         while (checkTime < 3f && checkCount < MAX_CHECKS) // Reduced from 5 seconds to 3 seconds
         {
             // OPTIMIZED: Use cached platforms instead of searching every time
@@ -185,12 +198,12 @@ public class BoatFloater : MonoBehaviour
                     }
                 }
             }
-            
+
             checkCount++;
             checkTime += 0.5f;
             yield return new WaitForSeconds(0.5f);
         }
-        
+
         if (debugMovement)
         {
             Debug.Log("BoatFloater: No platform registration detected after optimized search, starting movement anyway");
@@ -202,15 +215,15 @@ public class BoatFloater : MonoBehaviour
     public void OnRegisteredToPlatform(Platform platform)
     {
         if (isRegisteredToPlatform) return;
-        
+
         isRegisteredToPlatform = true;
         assignedPlatform = platform;
-        
+
         if (debugMovement)
         {
             Debug.Log($"BoatFloater: Registered to platform {platform.name}, starting movement!");
         }
-        
+
         StartMovement();
     }
 
@@ -218,11 +231,11 @@ public class BoatFloater : MonoBehaviour
     public void StartMovement()
     {
         if (movementActive) return;
-        
+
         movementActive = true;
         lastMovementChange = Time.time;
         ChooseNewMovementDirection();
-        
+
         if (debugMovement)
         {
             Debug.Log("BoatFloater: Movement started!");
@@ -234,13 +247,13 @@ public class BoatFloater : MonoBehaviour
     {
         // Random direction: -1 (left) or 1 (right)
         currentMovementDirection = Random.Range(0, 2) == 0 ? -1f : 1f;
-        
+
         // Update visual direction
         if (useSpriteFip && boatSpriteRenderer != null)
         {
             boatSpriteRenderer.flipX = currentMovementDirection < 0;
         }
-        
+
         if (debugMovement)
         {
             string direction = currentMovementDirection > 0 ? "RIGHT" : "LEFT";
@@ -312,7 +325,7 @@ public class BoatFloater : MonoBehaviour
         {
             Vector2 moveForce = Vector2.right * currentMovementDirection * movementSpeed;
             moveForce = Vector2.ClampMagnitude(moveForce, maxMovementForce);
-            
+
             rb.AddForce(moveForce);
 
             if (debugMovement)
@@ -339,7 +352,7 @@ public class BoatFloater : MonoBehaviour
         if (Mathf.Abs(horizontalForce) > 0.01f && IsInWater())
         {
             float effectiveForce = Mathf.Clamp(horizontalForce, -maxHorizontalForce, maxHorizontalForce);
-            
+
             if (adaptToScaleDirection)
             {
                 effectiveForce *= currentDirectionMultiplier;
@@ -376,14 +389,14 @@ public class BoatFloater : MonoBehaviour
 
                 // NEW: Use dynamic buoyancy force instead of fixed buoyancy
                 float force = submersion * effectiveBuoyancyForce * speedFactor;
-                
+
                 // Apply direction consideration to buoyancy distribution
                 if (adaptToScaleDirection && currentDirectionMultiplier < 0)
                 {
                     // Slightly modify buoyancy distribution when facing opposite direction
                     force *= 0.95f; // Small adjustment to prevent instability
                 }
-                
+
                 totalForce += Vector2.up * force;
             }
         }
@@ -395,7 +408,7 @@ public class BoatFloater : MonoBehaviour
             {
                 totalForce = Vector2.ClampMagnitude(totalForce, maxTotalForce * (effectiveBuoyancyForce / buoyancyForce));
             }
-            
+
             rb.AddForce(totalForce);
         }
     }
@@ -431,7 +444,7 @@ public class BoatFloater : MonoBehaviour
         float sternHeight = waterPhysics.GetWaterHeightAt(floatPoints[2].position);
 
         float heightDifference = bowHeight - sternHeight;
-        
+
         // Adjust wave rolling based on direction to prevent conflicts
         if (adaptToScaleDirection && currentDirectionMultiplier < 0)
         {
@@ -476,14 +489,14 @@ public class BoatFloater : MonoBehaviour
             // Adjust drag based on direction if needed
             float effectiveDrag = waterDrag;
             float effectiveAngularDrag = angularDrag;
-            
+
             if (adaptToScaleDirection && currentDirectionMultiplier < 0)
             {
                 // Slightly increase drag when facing opposite direction for stability
                 effectiveDrag *= 1.1f;
                 effectiveAngularDrag *= 1.2f;
             }
-            
+
             rb.velocity *= effectiveDrag;
             rb.angularVelocity *= effectiveAngularDrag;
         }
@@ -495,19 +508,19 @@ public class BoatFloater : MonoBehaviour
         if (currentAngle > 180f) currentAngle -= 360f;
 
         float stabilityTorque = -currentAngle * stabilityForce * Time.fixedDeltaTime;
-        
+
         // Apply direction-aware stability adjustments
         if (adaptToScaleDirection && currentDirectionMultiplier < 0)
         {
             stabilityTorque *= 1.3f; // Increase stability when direction changes
         }
-        
+
         // Apply force protection to stability torque
         if (enableForceProtection)
         {
             stabilityTorque = Mathf.Clamp(stabilityTorque, -maxTorqueLimit * 0.5f, maxTorqueLimit * 0.5f);
         }
-        
+
         rb.AddTorque(stabilityTorque);
     }
 
@@ -528,7 +541,7 @@ public class BoatFloater : MonoBehaviour
         // Prevent extreme rotations that could cause breakage
         float currentAngle = transform.eulerAngles.z;
         if (currentAngle > 180f) currentAngle -= 360f;
-        
+
         if (Mathf.Abs(currentAngle) > 45f)
         {
             // Apply corrective torque to prevent excessive rotation
@@ -560,7 +573,7 @@ public class BoatFloater : MonoBehaviour
     public void SetAutomaticMovementEnabled(bool enabled)
     {
         enableAutomaticMovement = enabled;
-        
+
         if (enabled && !movementActive && isRegisteredToPlatform)
         {
             StartMovement();
@@ -616,19 +629,19 @@ public class BoatFloater : MonoBehaviour
     public void SetMovementDirection(float direction)
     {
         currentMovementDirection = Mathf.Sign(direction);
-        
+
         if (useSpriteFip && boatSpriteRenderer != null)
         {
             boatSpriteRenderer.flipX = currentMovementDirection < 0;
         }
-        
+
         if (debugMovement)
         {
             string dir = currentMovementDirection > 0 ? "RIGHT" : "LEFT";
             Debug.Log($"BoatFloater: Movement direction set to {dir}");
         }
     }
-    
+
     // OPTIMIZED: Calculate total mass with caching and less frequent updates
     float CalculateTotalMassOptimized()
     {
@@ -637,9 +650,9 @@ public class BoatFloater : MonoBehaviour
         {
             RefreshComponentCache();
         }
-        
+
         float totalMass = rb.mass;
-        
+
         // Use cached components instead of GetComponentsInChildren every frame
         if (cachedChildRigidbodies != null)
         {
@@ -651,51 +664,51 @@ public class BoatFloater : MonoBehaviour
                 }
             }
         }
-        
+
         // Add gear mass for cached enemies
         if (cachedEnemies != null)
         {
             totalMass += cachedEnemies.Length * 0.5f; // 0.5f gear mass per enemy
         }
-        
+
         return totalMass;
     }
-    
+
     // NEW: Cache components to avoid expensive searches
     void RefreshComponentCache()
     {
         cachedChildRigidbodies = GetComponentsInChildren<Rigidbody2D>();
         cachedEnemies = GetComponentsInChildren<Enemy>();
         componentsCached = true;
-        
+
         if (debugMassChanges)
         {
             Debug.Log($"CACHE REFRESH: Found {cachedChildRigidbodies?.Length ?? 0} rigidbodies, {cachedEnemies?.Length ?? 0} enemies");
         }
     }
-    
+
     // OPTIMIZED: Update buoyancy force less frequently for performance
     void UpdateDynamicBuoyancyOptimized()
     {
         massCheckTimer += Time.fixedDeltaTime;
-        
+
         // Only check mass every MASS_CHECK_INTERVAL seconds
         if (massCheckTimer >= MASS_CHECK_INTERVAL)
         {
             massCheckTimer = 0f;
-            
+
             float currentTotalMass = CalculateTotalMassOptimized();
-            
+
             // Use less sensitive threshold to avoid constant recalculations
             if (Mathf.Abs(currentTotalMass - lastKnownMass) > 0.5f)
             {
                 lastKnownMass = currentTotalMass;
-                
+
                 // Calculate required buoyancy to support current total mass
                 float requiredBuoyancy = currentTotalMass * Physics2D.gravity.magnitude * 2.0f;
                 effectiveBuoyancyForce = Mathf.Max(buoyancyForce, requiredBuoyancy);
                 maxTotalForce = Mathf.Max(50f, effectiveBuoyancyForce * 1.5f);
-                
+
                 if (debugMassChanges)
                 {
                     Debug.Log($"MASS UPDATE: Total: {currentTotalMass:F2}, Buoyancy: {effectiveBuoyancyForce:F1}");
@@ -703,7 +716,7 @@ public class BoatFloater : MonoBehaviour
             }
         }
     }
-    
+
     // OPTIMIZED: Manually trigger buoyancy recalculation and refresh cache
     public void RecalculateBuoyancy()
     {
@@ -711,7 +724,7 @@ public class BoatFloater : MonoBehaviour
         RefreshComponentCache();
         lastKnownMass = 0f; // Force recalculation
         UpdateDynamicBuoyancyOptimized();
-        
+
         if (debugMassChanges)
         {
             Debug.Log("BoatFloater: Manual buoyancy recalculation triggered with cache refresh");
