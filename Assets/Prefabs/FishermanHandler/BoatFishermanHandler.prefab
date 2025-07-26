@@ -132,7 +132,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 7667254095196824905, guid: 29c863f917d5e8846acde5d4d6a4ca7e, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 6121835362245040161}
   m_SourcePrefab: {fileID: 100100000, guid: 29c863f917d5e8846acde5d4d6a4ca7e, type: 3}
 --- !u!61 &2085499127335074621 stripped
 BoxCollider2D:
@@ -144,6 +147,39 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 7667254095196824905, guid: 29c863f917d5e8846acde5d4d6a4ca7e, type: 3}
   m_PrefabInstance: {fileID: 5326827163894387267}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &6121835362245040161
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2561211109777225482}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 44c0b22cbb90b034fbc7f8dc8a1105e8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  edgeBuffer: 0.5
+  enableDebugMessages: 1
+  enableBoundsForStates: 1
+  onlyApplyToIdleFishermen: 0
+  showGizmos: 1
+  boundsColor: {r: 0, g: 1, b: 1, a: 1}
+  centerColor: {r: 1, g: 0, b: 0, a: 1}
+  fishermanColor: {r: 0, g: 1, b: 0, a: 1}
+  violationColor: {r: 1, g: 0, b: 1, a: 1}
+  pulledColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+  disabledColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+  maxDistanceFromCenter: 0
+  boatCenter: {fileID: 0}
+  boundsSetup: 0
+  boundsCurrentlyActive: 0
+  isBeingPulledByHook: 0
+  myActiveHook: {fileID: 0}
+  playerReference: {fileID: 0}
+  currentEnemyState: 0
+  currentMovementState: 0
+  fishingToolEquipped: 0
 --- !u!61 &3479015762017106946 stripped
 BoxCollider2D:
   m_CorrespondingSourceObject: {fileID: 8767175256861322817, guid: 29c863f917d5e8846acde5d4d6a4ca7e, type: 3}

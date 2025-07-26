@@ -57,15 +57,15 @@ MonoBehaviour:
   - {fileID: 7097401271740460365}
   - {fileID: 6699438916111739493}
   - {fileID: 3643950951084485024}
+  horizontalForce: 0
+  maxHorizontalForce: 0
+  movementSpeed: 60
+  maxMovementForce: 60
   enableFloaterMovement: 1
-  horizontalForce: 5
-  maxHorizontalForce: 5
   adaptToScaleDirection: 1
   boatSpriteRenderer: {fileID: 4981744675166538355}
   useSpriteFip: 1
   enableAutomaticMovement: 1
-  movementSpeed: 30
-  maxMovementForce: 6
   movementChangeInterval: 3
   minMovementTime: 2
   debugMovement: 0
@@ -135,11 +135,11 @@ MonoBehaviour:
   boatFishermanPrefab: {fileID: 1963649820016990938, guid: c45946bf32b8a4045aad4551ca754c64, type: 3}
   crewSpawnPoints:
   - {fileID: 4120316064714226126}
-  minCrewMembers: 1
   maxCrewMembers: 2
+  maxInactiveCrewMembers: 1
   baseBoatIntegrity: 0
   debugIntegrity: 1
-  activeCrewMembers: []
+  allCrewMembers: []
   currentIntegrity: 0
   maxIntegrity: 0
   isBoatDestroyed: 0
